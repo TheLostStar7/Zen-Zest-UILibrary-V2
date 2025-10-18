@@ -1,0 +1,434 @@
+local Library = {}
+Library.__index = Library
+Library.Data = {
+    Flags = {},
+    UIKey = {},
+    Elements = {},
+    Utility = {
+        IconModules = {}
+    }
+}
+Library.Settings = {
+    Theme = {
+        Default = {
+            Red = {
+                Line = Color3.fromRGB(201,43,67),
+                Line_ = Color3.fromRGB(201,43,67),
+                Text = Color3.fromRGB(201,43,67)
+            }
+        },
+        Custom = {}
+    },
+    CurrentTheme = "Red",
+    CurrentFont = Enum.Font.Ubuntu
+}
+local uis,ts,rs,httpservice,texts = game:GetService("UserInputService"),game:GetService("TweenService"),game:GetService("RunService"),game:GetService("HttpService"),game:GetService("TextService")
+function Create(...) local args = {...} local obj if args[1] == "Instance.new" then obj = Instance.new(args[2]) elseif args[1] == "Drawing.new" then obj = Drawing.new(args[2]) end if not obj then return nil end for i,v in pairs(args[3] or {}) do pcall(function() obj[i] = v end) end return obj end
+function TweenObject(...) local args = {...} local twn = ts:Create(args[1],TweenInfo.new(args[2] or .5,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),args[3]) twn:Play() if args[#args] == true then twn.Completed:Wait() end end
+function Library:Init(...)
+    
+end
+function Library:SetFont(font)
+    local chosen = Enum.Font[font]
+    if not chosen then warn(("[Zen Zest UI] Invalid font '%s' — using default Ubuntu."):format(tostring(font))) chosen = Enum.Font.Ubuntu end
+    self.Settings.CurrentFont = chosen
+    for _,data in pairs(self.Data.Elements) do
+        for name,element in pairs(data) do
+            if element:IsA("TextLabel") or element:IsA("TextButton") or element:IsA("TextBox") then
+                element.Font = chosen
+            end
+        end
+    end
+end
+function Library:GetTheme(theme) return self.Settings.Theme.Default[theme] or self.Settings.Theme.Custom[theme] end
+function Library:SetTheme(name)
+    local theme = self:GetTheme(name)
+    if not theme then warn(("[Zen Zest UI] Theme '%s' not found."):format(name)) return end
+    self.Settings.CurrentTheme = name
+    for _,elements in pairs(self.Data.Elements) do
+        if elements.Background then
+            elements.Background.BackgroundColor3 = theme.Background or elements.Background.BackgroundColor3
+        end
+        if elements.Secondary_Background then
+            elements.Secondary_Background.BackgroundColor3 = theme.SecondaryBackground or elements.Secondary_Background.BackgroundColor3
+        end
+        if elements.Line then
+            elements.Line.BackgroundColor3 = theme.Line or elements.Line.BackgroundColor3
+        end
+        if elements.Secondary_Line then
+            elements.Secondary_Line.BackgroundColor3 = theme.Line_ or elements.Secondary_Line.BackgroundColor3
+        end
+        if elements.Title then
+            elements.Title.TextColor3 = theme.Title or elements.Title.TextColor3
+        end
+    end
+end
+function Library:AddTheme(theme,colors) if self.Settings.Theme.Default[theme] or self.Settings.Theme.Custom[theme] then warn(("[Zen Zest UI] Theme '%s' already exists."):format(theme)) return end self.Settings.Theme.Custom[theme] = colors end
+function Library:CreateWindow(args)
+    local window_args = args.Window or {}
+    local settings_args = args.Settings or {}
+    local title = window_args.Title or "Zen Zest UILibrary V2"
+    local auto_scale = window_args.Scale_Settings and window_args.Scale_Settings.Auto_Scale or false
+    local scale = window_args.Scale_Settings and window_args.Scale_Settings.Scale or {Desktop = 1,Mobile = 1.1}
+    local loading_screen = window_args.Loading_Screen and window_args.Loading_Screen.Enabled or false
+    local loading_screen_title = window_args.Loading_Screen and window_args.Loading_Screen.Loading_Title or "Loading..."
+    local loading_screen_subtitle = window_args.Loading_Screen and window_args.Loading_Screen.Loading_SubTitle or "By ZZ."
+    local theme_name = settings_args.Theme_Settings and settings_args.Theme_Settings.Theme or "Red"
+    local theme = self.Settings.Theme.Default[theme_name] or self.Settings.Theme.Custom[theme_name] or {}
+    local cbg = theme.Background or Color3.fromRGB(38,38,38)
+    local csbg = theme.SecondaryBackground or Color3.fromRGB(18,18,18)
+    local cline = theme.Line or Color3.fromRGB(201,43,67)
+    local csline = theme.Line_ or Color3.fromRGB(201,43,67)
+    local rainbow = settings_args.Theme_Settings and settings_args.Theme_Settings.Rainbow or false
+    local rainbow_method = settings_args.Theme_Settings and settings_args.Theme_Settings.Rainbow_Method or "Rgb"
+    local keybind = settings_args.Keybind or "Z"
+    local font_name = settings_args.Font or "Ubuntu"
+    local font = Enum.Font[font_name] or Enum.Font.Ubuntu
+    
+    local ready = true
+    if loading_screen then
+        local done = self:Init()
+        repeat task.wait() until done
+    end
+    
+    Library.Blacklist = {Enum.KeyCode.Unknown,Enum.KeyCode.W,Enum.KeyCode.A,Enum.KeyCode.S,Enum.KeyCode.D,Enum.KeyCode.Slash,Enum.KeyCode.Tab,Enum.KeyCode.Escape}
+    Library.NumberKeys = {Enum.KeyCode.Zero,Enum.KeyCode.One,Enum.KeyCode.Two,Enum.KeyCode.Three,Enum.KeyCode.Four,Enum.KeyCode.Five,Enum.KeyCode.Six,Enum.KeyCode.Seven,Enum.KeyCode.Eight,Enum.KeyCode.Nine}
+    Library.ShortKeys = {[Enum.KeyCode.LeftControl] = "LCTRL",[Enum.KeyCode.RightControl] = "RCTRL",[Enum.KeyCode.LeftShift] = "LSHIFT",[Enum.KeyCode.RightShift] = "RSHIFT",[Enum.UserInputType.MouseButton1] = "MB1",[Enum.UserInputType.MouseButton2] = "MB2",[Enum.UserInputType.MouseButton3] = "MB3"}
+    local function KeyCode(str)
+        for _,key in pairs(Enum.KeyCode:GetEnumItems()) do
+            if key.Name:lower() == tostring(str):lower() then
+                return key
+            end
+        end
+        return Enum.KeyCode.Z
+    end
+    settings_args.Keybind = KeyCode("Z")
+    uis.InputBegan:Connect(function(input,gp)
+        if gp then return end
+        if input.KeyCode == settings_args.Keybind then
+            Library:Visible()
+        end
+    end)
+    local Key = {}
+    Library.Data.UIKey[Key] = {Title = title,Creation = tick(),Theme = Library.Settings.CurrentTheme,Tabs = {},CurrentTab = nil}
+    local sg = Create("Instance.new","ScreenGui",{Parent = game:GetService("CoreGui"),Name = "Zen Zest Library V2",IgnoreGuiInset = true,ZIndexBehavior = Enum.ZIndexBehavior.Sibling}) self.esg = sg
+    local f = Create("Instance.new","Frame",{Parent = sg,Name = "Border",Size = UDim2.fromScale(.9,.9),Position = UDim2.new(0.5,0,0.5,0),AnchorPoint = Vector2.new(0.5,0.5),BackgroundColor3 = cbg,BorderSizePixel = 0}) self.ef = f
+    Create("Instance.new","UIAspectRatioConstraint",{Parent = f,AspectRatio = 1.3})
+    Create("Instance.new","UIScale",{Parent = f,Scale = auto_scale and uis.TouchEnabled and 1.1 or 1})
+    local f_ = Create("Instance.new","Frame",{Parent = f,Name = "Border_",Size = UDim2.new(1,-4,1,-3),Position = UDim2.new(0,2,0,2),BackgroundColor3 = csbg,BorderSizePixel = 0})
+    local f_0 = Create("Instance.new","Frame",{Parent = f,Name = "Line",Size = UDim2.new(1,0,0,1),Position = UDim2.new(0,0,1,-1),BackgroundColor3 = cline,BorderSizePixel = 0})
+    local f_1 = Create("Instance.new","CanvasGroup",{Parent = f_,Name = "Main",Size = UDim2.new(1,-4,1,-3),Position = UDim2.new(0,2,0,2),BackgroundColor3 = Color3.fromRGB(28,28,28),BorderSizePixel = 0})
+    local tl = Create("Instance.new","TextLabel",{Parent = f_1,Name = "Title",Size = UDim2.fromScale(1,.05),BackgroundTransparency = 1,TextColor3 = Color3.new(1,1,1),Font = font,Text = title,TextSize = uis.TouchEnabled and 14 or 17,TextXAlignment = Enum.TextXAlignment.Left,RichText = true})
+    Create("Instance.new","UIPadding",{Parent = tl,PaddingBottom = UDim.new(0,2),PaddingLeft = UDim.new(.01,0),PaddingRight = UDim.new(.01,0),PaddingTop = UDim.new(0,2)})
+    local f_2 = Create("Instance.new","Frame",{Parent = f_1,Name = "Line_",Size = UDim2.new(1,0,0,1),Position = UDim2.new(0,0,.05,1),BackgroundColor3 = csline,BorderSizePixel = 0})
+    local sf = Create("Instance.new","ScrollingFrame",{Parent = f_1,Name = "Container",Size = UDim2.fromScale(.26,.94),Position = UDim2.fromScale(0,.06),BackgroundColor3 = Color3.fromRGB(38,38,38),BorderSizePixel = 0,CanvasSize = UDim2.new(0,0,0,0),AutomaticCanvasSize = Enum.AutomaticSize.Y,ScrollingDirection = Enum.ScrollingDirection.Y,ScrollingBar = 1})
+    Create("Instance.new","UIListLayout",{Parent = sf})
+    local f_3 = Create("Instance.new","Frame",{Parent = f_1,Name = "Container_",Size = UDim2.fromScale(.74,.94),Position = UDim2.fromScale(.26,.06),BackgroundColor3 = Color3.fromRGB(28,28,28),BorderSizePixel = 0})
+    local f_4 = Create("Instance.new","CanvasGroup",{Parent = f_1,Name = "Fade",Size = UDim2.fromScale(1,.34),Position = UDim2.fromScale(0,.66),GroupTransparency = .9,BorderSizePixel = 0})
+    Create("Instance.new","UIGradient",{Parent = f_4,Color = ColorSequence.new{ColorSequenceKeypoint.new(0,Color3.fromRGB(25,25,25)),ColorSequenceKeypoint.new(1,Color3.fromRGB(0,0,0))},Rotation = 90,})
+    Library.Data.Elements[Key] = {
+        Background = f,
+        Secondary_Background = f_,
+        Line = f_0,
+        Primary = f_1,
+        Title = tl,
+        Secondary_Line = f_2,
+        Container = sf,
+        Container_ = f_3
+    }
+    local window = {}
+    window.Data = Library.Data.UIKey[Key]
+    window.Key = Key
+    function window:AddTab(args)
+        local theme = Library.Settings.Theme.Default[Library.Settings.CurrentTheme] or Library.Settings.Theme.Custom[Library.Settings.CurrentTheme] or {}
+        local ctl = theme.Text or Color3.fromRGB(201,43,67)
+        local title = (args and args.Title) or "Tab"
+        local opened = (args and args.Opened) or false
+        local key = self.Key
+        local cf,cf_ = Library.Data.Elements[key] and Library.Data.Elements[key].Container,Library.Data.Elements[key] and Library.Data.Elements[key].Container_
+        if not cf or not cf_ then return nil end
+        local f_5 = Create("Instance.new","TextButton",{Parent = cf,Name = "Tab",Size = UDim2.fromScale(1,.08),BackgroundTransparency = 1,Text = ""})
+        local tl_ = Create("Instance.new","TextLabel",{Parent = f_5,Name = "Tab_Title",Size = UDim2.fromScale(1,1),BackgroundTransparency = 1,TextColor3 = Color3.new(1,1,1),Font = Library.Settings.CurrentFont,Text = title,TextSize = uis.TouchEnabled and 12 or 15,TextXAlignment = Enum.TextXAlignment.Left,RichText = true})
+        Create("Instance.new","UIPadding",{Parent = tl_,PaddingLeft = UDim.new(.06),PaddingRight = UDim.new(.06)})
+        local f_6 = Create("Instance.new","Frame",{Parent = f_5,Name = "Tab_Status",Size = UDim2.new(0,2,1,0),Position = UDim2.fromOffset(-2,0),BackgroundColor3 = ctl,BorderSizePixel = 0})
+        local sf_ = Create("Instance.new","ScrollingFrame",{Parent = cf_,Name = "Tab_Container",Size = UDim2.fromScale(1,1),BackgroundTransparency = 1,CanvasSize = UDim2.new(0,0,0,0),AutomaticCanvasSize = Enum.AutomaticSize.Y,ScrollingDirection = Enum.ScrollingDirection.Y,ScrollingBar = 0})
+        Create("Instance.new","UIListLayout",{Parent = sf_,Padding = UDim.new(.005,0)})
+        Create("Instance.new","UIPadding",{Parent = sf_,PaddingLeft = UDim.new(.02,0),PaddingTop = UDim.new(.02,0)})
+        local new = {Tab_Status = opened,Tab_Frame = f_5,Tab_Title = tl_,Tab_Container = sf_,Tab_Status_Frame = f_6}
+        table.insert(self.Data.Tabs,new)
+        Library.Data.Elements[Key] = Library.Data.Elements[Key] or {}
+        Library.Data.Elements[Key].Tab_Title = tl_
+        Library.Data.Elements[Key].Tab_Status = f_6
+        Library.Data.Elements[Key].Tab_Container = sf_
+        f_5.Activated:Connect(function()
+            if not new.Tab_Status then
+                for _,v in ipairs(self.Data.Tabs) do
+                    if v ~= new and v.Tab_Status then
+                        v.Tab_Status = false
+                        TweenObject(v.Tab_Status_Frame,.25,{Position = UDim2.fromOffset(-2,0)})
+                        TweenObject(v.Tab_Title,.25,{TextColor3 = Color3.new(1,1,1)})
+                        v.Tab_Container.Visible = false
+                    end
+                end
+                new.Tab_Status = true
+                TweenObject(f_6,.25,{Position = UDim2.fromOffset(0,0)})
+                TweenObject(tl_,.25,{TextColor3 = ctl})
+                sf_.Visible = true
+                Library.Data.UIKey[key].CurrentTab = new
+            else
+                new.Tab_Status = false
+                TweenObject(f_6,.25,{Position = UDim2.fromOffset(-2,0)})
+                TweenObject(tl_,.25,{TextColor3 = Color3.new(1,1,1)})
+                sf_.Visible = false
+                Library.Data.UIKey[key].CurrentTab = nil
+            end
+        end)
+        if opened then
+            for _,tab in ipairs(self.Data.Tabs) do
+                if tab ~= new and tab.Tab_Status then
+                    tab.Tab_Status = false
+                    tab.Tab_Status_Frame.Position = UDim2.fromOffset(-2,0)
+                    tab.Tab_Title.TextColor3 = Color3.new(1,1,1)
+                    tab.Tab_Container.Visible = false
+                end
+            end
+            new.Tab_Status = true
+            f_6.Position = UDim2.fromOffset(0,0)
+            tl_.TextColor3 = ctl
+            sf_.Visible = true
+            Library.Data.UIKey[key].CurrentTab = new
+        else
+            new.Tab_Status = false
+            f_6.Position = UDim2.fromOffset(-2,0)
+            tl_.TextColor3 = Color3.new(1,1,1)
+            sf_.Visible = false
+        end
+        function new:AddButton(args_)
+            local title = args_.Title or "Button"
+            local desc = args_.Desc or args_.Description or ""
+            local locked = args_.Locked or false
+            local callback = args_.Callback or function() end
+            local container = self.Tab_Container
+            local theme = Library.Settings.Theme.Default[Library.Settings.CurrentTheme] or Library.Settings.Theme.Custom[Library.Settings.CurrentTheme] or {}
+            local ctl = theme.Text or Color3.fromRGB(201,43,67)
+            if not container then return nil end
+            local objs = {}
+            local f_7 = Create("Instance.new","Frame",{Parent = container,Name = "Border_0",Size = UDim2.fromScale(.99,.1),BackgroundColor3 = Color3.fromRGB(24,24,24),BorderSizePixel = 0})
+            local f_8 = Create("Instance.new","Frame",{Parent = f_7,Name = "Border_1",Size = UDim2.new(1,-4,1,-4),Position = UDim2.fromOffset(2,2),BackgroundColor3 = Color3.fromRGB(38,38,38),BorderSizePixel = 0})
+            local f_9 = Create("Instance.new","Frame",{Parent = f_8,Name = "Border_2",Size = UDim2.new(1,-4,1,-4),Position = UDim2.fromOffset(2,2),BackgroundColor3 = Color3.fromRGB(30,30,30),BorderSizePixel = 0})
+            local tl_0 = Create("Instance.new","TextLabel",{Parent = f_9,Name = "Title",Size = UDim2.fromScale(1,1),BackgroundTransparency = 1,TextColor3 = Color3.new(1,1,1),Font = Library.Settings.CurrentFont,Text = title,TextSize = uis.TouchEnabled and 15 or 17,TextXAlignment = Enum.TextXAlignment.Left,RichText = true})
+            Create("Instance.new","UIPadding",{Parent = tl_0,PaddingLeft = UDim.new(.01,0)})
+            if desc ~= "" then
+                f_7.Size = UDim2.fromScale(.99,.13)
+                tl_0.Size = UDim2.fromScale(1,.6)
+                local tl_1 = Create("Instance.new","TextLabel",{Parent = f_9,Name = "Description",Size = UDim2.fromScale(1,.4),Position = UDim2.fromScale(0,.6),BackgroundTransparency = 1,TextColor3 = Color3.fromRGB(180,180,180),Font = Library.Settings.CurrentFont,Text = desc,TextSize = uis.TouchEnabled and 12 or 15,TextXAlignment = Enum.TextXAlignment.Left,TextYAlignment = Enum.TextYAlignment.Top,RichText = true})
+                Create("Instance.new","UIPadding",{Parent = tl_1,PaddingLeft = UDim.new(.01,0),PaddingBottom = UDim.new(1.1,0)})
+            end
+            local tbtn = Create("Instance.new","TextButton",{Parent = f_7,Size = UDim2.fromScale(1,1),BackgroundTransparency = 1,Text = ""})
+            tbtn.AutoButtonColor = not locked
+            objs = {
+                Frame = f_7,
+                Button = tbtn,
+                Locked = locked,
+                Destroy = function()
+                    f_7:Destroy()
+                end,
+                SetLocked = function(self,state)
+                    self.Locked = state
+                    tl_0.TextColor3 = state and Color3.fromRGB(180,180,180) or Color3.new(1,1,1)
+                    tbtn.AutoButtonColor = not state
+                end,
+                SetTitle = function(self,text)
+                    tl_0.Text = tostring(text or "")
+                end,
+                SetDesc = function(self,text)
+                    text = tostring(text or "")
+                    if tl_1 then
+                        tl_1.Text = text
+                    elseif text ~= "" then
+                        f_7.Size = UDim2.fromScale(.99,.13)
+                        tl_0.Size = UDim2.fromScale(1,.6)
+                        tl_1 = Create("Instance.new","TextLabel",{Parent = f_9,Name = "Description",Size = UDim2.fromScale(1,.4),Position = UDim2.fromScale(0,.6),BackgroundTransparency = 1,TextColor3 = Color3.fromRGB(180,180,180),Font = Library.Settings.CurrentFont,Text = text,TextSize = uis.TouchEnabled and 12 or 15,TextXAlignment = Enum.TextXAlignment.Left,TextYAlignment = Enum.TextYAlignment.Top,RichText = true})
+                        Create("Instance.new","UIPadding",{Parent = tl_1,PaddingLeft = UDim.new(.01,0),PaddingBottom = UDim.new(1.1,0)})
+                    end
+                end,
+                SetDescription = function(self,text)
+                    self:SetDesc(text)
+                end
+            }
+            tbtn.Activated:Connect(function()
+                if objs.Locked then return end
+                TweenObject(tl_0,.35,{TextColor3 = ctl})
+                local ok,err = xpcall(function() callback(objs) end,function(e) return debug.traceback("[Zen Zest V2 Debugger]("..tostring(e),2)..")" end)
+                if not ok then warn(err) end
+                task.wait(.35)
+                TweenObject(tl_0,.35,{TextColor3 = objs.Locked and Color3.fromRGB(180,180,180) or Color3.new(1,1,1)})
+            end)
+            if locked then tl_0.TextColor3 = locked and Color3.fromRGB(180,180,180) end
+            return objs
+        end
+        function new:AddToggle(args_0)
+            local title = args_0.Title or "Toggle"
+            local desc = args_0.Desc or args_0.Description or ""
+            local default = args_0.Default or false
+            local locked = args_0.Locked or false
+            local callback = args_0.Callback or function() end
+            local container = self.Tab_Container
+            local theme = Library.Settings.Theme.Default[Library.Settings.CurrentTheme] or Library.Settings.Theme.Custom[Library.Settings.CurrentTheme] or {}
+            local ctl = theme.Text or Color3.fromRGB(201,43,67)
+            if not container then return nil end
+            local objs = {}
+            local f_10 = Create("Instance.new","Frame",{Parent = container,Name = "Border_0",Size = UDim2.fromScale(.99,.1),BackgroundColor3 = Color3.fromRGB(24,24,24),BorderSizePixel = 0})
+            local f_11 = Create("Instance.new","Frame",{Parent = f_10,Name = "Border_1",Size = UDim2.new(1,-4,1,-4),Position = UDim2.fromOffset(2,2),BackgroundColor3 = Color3.fromRGB(38,38,38),BorderSizePixel = 0})
+            local f_12 = Create("Instance.new","Frame",{Parent = f_11,Name = "Border_2",Size = UDim2.new(1,-4,1,-4),Position = UDim2.fromOffset(2,2),BackgroundColor3 = Color3.fromRGB(30,30,30),BorderSizePixel = 0})
+            local tl_2 = Create("Instance.new","TextLabel",{Parent = f_12,Name = "Title",Size = UDim2.fromScale(1,1),BackgroundTransparency = 1,TextColor3 = Color3.new(1,1,1),Font = Library.Settings.CurrentFont,Text = title,TextSize = uis.TouchEnabled and 15 or 17,TextXAlignment = Enum.TextXAlignment.Left,RichText = true})
+            Create("Instance.new","UIPadding",{Parent = tl_2,PaddingLeft = UDim.new(.01,0)})
+            if desc ~= "" then
+                f_10.Size = UDim2.fromScale(.99,.13)
+                tl_2.Size = UDim2.fromScale(1,.6)
+                local tl_3 = Create("Instance.new","TextLabel",{Parent = f_12,Name = "Description",Size = UDim2.fromScale(1,.4),Position = UDim2.fromScale(0,.6),BackgroundTransparency = 1,TextColor3 = Color3.fromRGB(180,180,180),Font = Library.Settings.CurrentFont,Text = desc,TextSize = uis.TouchEnabled and 12 or 15,TextXAlignment = Enum.TextXAlignment.Left,TextYAlignment = Enum.TextYAlignment.Top,RichText = true})
+                Create("Instance.new","UIPadding",{Parent = tl_3,PaddingLeft = UDim.new(.01,0),PaddingBottom = UDim.new(1.1,0)})
+            end
+            local tbtn_ = Create("Instance.new","TextButton",{Parent = f_10,Size = UDim2.fromScale(1,1),BackgroundTransparency = 1,Text = ""})
+            tbtn_.AutoButtonColor = not locked
+            local opened = default
+            tl_2.TextColor3 = opened and ctl or (locked and Color3.fromRGB(180,180,180) or Color3.new(1,1,1))
+            objs = {
+                Frame = f_10,
+                Button = tbtn_,
+                Locked = locked,
+                Destroy = function()
+                    f_10:Destroy()
+                end,
+                SetLocked = function(self,state)
+                    self.Locked = state
+                    tl_2.TextColor3 = state and Color3.fromRGB(180,180,180) or Color3.new(1,1,1)
+                    tbtn.AutoButtonColor = not state
+                end,
+                SetTitle = function(self,text)
+                    tl_2.Text = tostring(text or "")
+                end,
+                SetDesc = function(self,text)
+                    text = tostring(text or "")
+                    if tl_3 then
+                        tl_3.Text = text
+                    elseif text ~= "" then
+                        f_10.Size = UDim2.fromScale(.99,.13)
+                        tl_2.Size = UDim2.fromScale(1,.6)
+                        tl_3 = Create("Instance.new","TextLabel",{Parent = f_12,Name = "Description",Size = UDim2.fromScale(1,.4),Position = UDim2.fromScale(0,.6),BackgroundTransparency = 1,TextColor3 = Color3.fromRGB(180,180,180),Font = Library.Settings.CurrentFont,Text = text,TextSize = uis.TouchEnabled and 12 or 15,TextXAlignment = Enum.TextXAlignment.Left,TextYAlignment = Enum.TextYAlignment.Top,RichText = true})
+                        Create("Instance.new","UIPadding",{Parent = tl_3,PaddingLeft = UDim.new(.01,0),PaddingBottom = UDim.new(1.1,0)})
+                    end
+                end,
+                SetDescription = function(self,text)
+                    self:SetDesc(text)
+                end,
+                SetDefault = function(self,state)
+                    opened = state
+                    default = state
+                    TweenObject(tl_2,.35,{TextColor3 = state and ctl or Color3.new(1,1,1)})
+                    local ok,err = xpcall(function() callback(true,self) end,function(e) return debug.traceback("[Zen Zest V2 Debugger]("..tostring(e),2)..")" end)
+                    if not ok then warn(err) end
+                end,
+                State = function(self)
+                    return opened
+                end
+            }
+            tbtn_.Activated:Connect(function()
+                if objs.Locked then return end
+                opened = not opened
+                TweenObject(tl_2,.35,{TextColor3 = opened and ctl or Color3.new(1,1,1)})
+                local ok,err = xpcall(function() callback(opened,objs) end,function(e) return debug.traceback("[Zen Zest V2 Debugger]("..tostring(e),2)..")" end)
+                if not ok then warn(err) end
+            end)
+            if default then
+                local ok,err = xpcall(function() callback(true,objs) end,function(e) return debug.traceback("[Zen Zest V2 Debugger]("..tostring(e),2)..")" end)
+                if not ok then warn(err) end
+            end
+            if locked then tl_2.TextColor3 = locked and Color3.fromRGB(180,180,180) end
+            return objs
+        end
+        return new
+    end
+    local d,ds,fs
+    f.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            d = true
+            ds = i.Position
+            fs = f.Position
+            i.Changed:Connect(function()
+                if i.UserInputState == Enum.UserInputState.End then
+                    d = false
+                end
+            end)
+        end
+    end)
+    uis.InputChanged:Connect(function(i)
+        if d and (i.UserInputType.Name == "MouseMovement" or i.UserInputType.Name == "Touch") then
+            TweenObject(f,.2,{Position = UDim2.new(fs.X.Scale,fs.X.Offset+(i.Position.X-ds.X),fs.Y.Scale,fs.Y.Offset+(i.Position.Y-ds.Y))})
+        end
+    end)
+    local function RgbRainbow(t)
+        return Color3.fromHSV(t%1,1,1)
+    end
+    local function RbgColors(a,t)
+        a = math.max(12,math.floor(a or 12))
+        local keypoints = {}
+        for i=1,a do
+            local pos = (i-1)/(a-1)
+            local hue = (pos+t)%1
+            table.insert(keypoints,ColorSequenceKeypoint.new(pos,Color3.fromHSV(hue,1,1)))
+        end
+        return ColorSequence.new(keypoints)
+    end
+    local function GradientCheck(obj)
+        local gradient = obj:FindFirstChildOfClass("UIGradient")
+        if not gradient then gradient = Create("Instance.new","UIGradient",{Parent = obj,Rotation = 0,Offset = Vector2.new(0,0)}) end
+        return gradient
+    end
+    if rainbow then
+        spawn(function()
+            local rainbow_speed = settings_args.Theme_Settings.Rainbow_Speed or 5
+            while task.wait(.03) do
+                local time = (tick()/rainbow_speed)%1
+                if string.lower(rainbow_method) == "rbg" then
+                    local color = RgbRainbow(time)
+                    for _,v in pairs(Library.Data.Elements) do
+                        if v.Line then v.Line.BackgroundColor3 = color end
+                        if v.Secondary_Line then v.Secondary_Line.BackgroundColor3 = color end
+                    end
+                elseif string.lower(rainbow_method) == "gradient" then
+                    local ColorSequences = RbgColors(20,time)
+                    for _,v in pairs(Library.Data.Elements) do
+                        if v.Line then
+                            v.Line.BackgroundColor3 = Color3.new(1,1,1)
+                            local gradient = GradientCheck(v.Line)
+                            gradient.Color = ColorSequences
+                            gradient.Rotation = 0
+                        end
+                        if v.Secondary_Line then
+                            v.Secondary_Line.BackgroundColor3 = Color3.new(1,1,1)
+                            local gradient = GradientCheck(v.Secondary_Line)
+                            gradient.Color = ColorSequences
+                            gradient.Rotation = 0
+                        end
+                    end
+                end
+            end
+        end)
+    end
+    return window
+end
+function Library:Destroy()
+    if self.esg then
+        self.esg:Destroy()
+        self.esg = nil
+    end
+end
+function Library:Visible(...)
+    local args = {...}
+    local state = args[1] or nil
+    if self.ef then
+        self.ef.Visible = (state == nil and not self.ef.Visible) or state
+    end
+end
+return Library
