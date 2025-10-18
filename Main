@@ -341,8 +341,10 @@ function Library:CreateWindow(args)
                 if not ok then warn(err) end
             end)
             if default then
-                local ok,err = xpcall(function() callback(true,objs) end,function(e) return debug.traceback("[Zen Zest V2 Debugger]("..tostring(e),2)..")" end)
-                if not ok then warn(err) end
+                task.defer(function()
+                    local ok,err = xpcall(function() callback(true,objs) end,function(e) return debug.traceback("[Zen Zest V2 Debugger]("..tostring(e),2)..")" end)
+                    if not ok then warn(err) end
+                end)
             end
             if locked then tl_2.TextColor3 = locked and Color3.fromRGB(180,180,180) end
             return objs
