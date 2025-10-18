@@ -99,6 +99,6 @@ local tgl;tgl = first:AddToggle({Title = "Lol V2",Desc = "You can't click me!!!"
     print("Nuh uh:",status)
 end,})
 first:AddButton({Title = "Turn On Lol V2",Callback = function()
-    tgl:SetDefault(tgl:State())
+    tgl:SetDefault(not tgl:State())
 end,})
 ```
