@@ -54,6 +54,7 @@ State() - Function (Returns true Or false)
 
 ## Usage Example
 ```Luau
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/TheLostStar7/Zen-Zest-UILibrary-V2/refs/heads/main/Main"))()
 local win = Library:CreateWindow({
     Window = {
         Title = "Wsp",
