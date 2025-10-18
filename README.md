@@ -1,6 +1,7 @@
 # Zen-Zest-UILibrary-V2
 Zen Zest UILibrary V2 Isn't A Remake But A New UI Library.
 - Prototype.
+
 ## Features
 
 - Feature 1
@@ -9,12 +10,6 @@ Zen Zest UILibrary V2 Isn't A Remake But A New UI Library.
 
 ## Example
 
-```bash
-# Clone the repo
-git clone https://github.com/yourusername/yourproject.git
-
-# Go into the folder
-cd yourproject
-
-# Install dependencies
-npm install
+```Luau
+Test
+```
