@@ -8,7 +8,7 @@ Window Or Library:
 ```Luau
 --[[
 Library:Destroy()
-Library:Visible() - Boolean (true Or false)
+Library:Visible(true) - Boolean (true Or false)
 Library:AddTheme("Hello"{
 -- Blah Blah Check The Source.
 })
