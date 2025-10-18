@@ -303,7 +303,7 @@ function Library:CreateWindow(args)
                 SetLocked = function(self,state)
                     self.Locked = state
                     tl_2.TextColor3 = state and Color3.fromRGB(180,180,180) or Color3.new(1,1,1)
-                    tbtn.AutoButtonColor = not state
+                    tbtn_.AutoButtonColor = not state
                 end,
                 SetTitle = function(self,text)
                     tl_2.Text = tostring(text or "")
@@ -326,7 +326,7 @@ function Library:CreateWindow(args)
                     opened = state
                     default = state
                     TweenObject(tl_2,.35,{TextColor3 = state and ctl or Color3.new(1,1,1)})
-                    local ok,err = xpcall(function() callback(true,self) end,function(e) return debug.traceback("[Zen Zest V2 Debugger]("..tostring(e),2)..")" end)
+                    local ok,err = xpcall(function() callback(state,self) end,function(e) return debug.traceback("[Zen Zest V2 Debugger]("..tostring(e),2)..")" end)
                     if not ok then warn(err) end
                 end,
                 State = function(self)
