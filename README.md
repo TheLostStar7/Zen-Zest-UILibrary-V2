@@ -1,2 +1,2 @@
-# Zen-Zest-UILibrary-V2
-- [BETA]
+Zen-Zest-UILibrary-V2
+- Prototype.
